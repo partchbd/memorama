@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memorama de Frutas</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f7f7ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  h1 {
+    font-size: 28px;
+    color: #444;
+    margin-top: 20px;
+  }
+
+  #modeButtons {
+    margin: 20px;
+    display: flex;
+    gap: 15px;
+  }
+
+  button {
+    padding: 10px 20px;
+    background: #8da6ff;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transition: 0.2s;
+  }
+
+  button:hover {
+    background: #6987ff;
+  }
+
+  #timer {
+    margin-bottom: 10px;
+    font-size: 20px;
+    color: #222;
+    display: none;
+  }
+
+  .game {
+    display: grid;
+    gap: 15px;
+    justify-content: center;
+  }
+
+  .card {
+    width: 90px;
+    height: 90px;
+    background: white;
+    border-radius: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 45px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    user-select: none;
+    transition: transform 0.3s;
+  }
+
+  .card.flipped {
+    background: #ffe9f0;
+    transform: scale(1.1);
+  }
+
+  .card.matched {
+    background: #c1ffd0;
+    cursor: default;
+    transform: scale(1);
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Memorama de Frutas</h1>
+
+<div id="modeButtons">
+  <button onclick="startNormal()">Modo Normal</button>
+  <button onclick="startChallenge()">Modo Reto</button>
+</div>
+
+<div id="timer"></div>
+
+<div class="game" id="game"></div>
+
+<script>
+  const game = document.getElementById("game");
+  const timerDisplay = document.getElementById("timer");
+
+  // Muchos emojis para niveles altos
+  const allEmojis = ["🍎","🍌","🍒","🍇","🍉","🍓","🥝","🍍","🍑","🍅","🍐","🥥","🍈","🍊","🥭"];
+
+  // Tamaños de niveles (columnas, filas)
+  const levelSizes = [
+    [4,3],  // Nivel 1 - 12 cartas
+    [4,4],  // Nivel 2 - 16 cartas
+    [5,4],  // Nivel 3 - 20 cartas
+    [6,4],  // Nivel 4 - 24 cartas
+    [6,5]   // Nivel 5 - 30 cartas
+  ];
+
+  let level = 1;
+  let openedCards = [];
+  let matched = 0;
+  let cardsArray = [];
+  let challengeMode = false;
+  let timeLeft = 10;
+  let timer;
+
+  function setupGame() {
+    game.innerHTML = "";
+    openedCards = [];
+    matched = 0;
+
+    const [cols, rows] = levelSizes[level - 1];
+    game.style.gridTemplateColumns = `repeat(${cols}, 90px)`;
+
+    let totalCards = cols * rows;
+    let neededPairs = totalCards / 2;
+
+    let selectedEmojis = allEmojis.slice(0, neededPairs);
+
+    cardsArray = [...selectedEmojis, ...selectedEmojis];
+    cardsArray.sort(() => Math.random() - 0.5);
+
+    cardsArray.forEach(emoji => {
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.dataset.emoji = emoji;
+      card.textContent = "❓";
+      card.addEventListener("click", () => flipCard(card));
+      game.appendChild(card);
+    });
+  }
+
+  function startNormal() {
+    challengeMode = false;
+    timerDisplay.style.display = "none";
+    clearInterval(timer);
+    setupGame();
+  }
+
+  function startChallenge() {
+    challengeMode = true;
+    clearInterval(timer);
+    setupGame();
+
+    // Tiempo base por nivel
+    timeLeft = 20 - level * 2;
+    if (timeLeft < 6) timeLeft = 6;
+
+    timerDisplay.style.display = "block";
+
+    // Mostrar todas las cartas antes
+    document.querySelectorAll(".card").forEach(card => {
+      card.classList.add("flipped");
+      card.textContent = card.dataset.emoji;
+    });
+
+    setTimeout(() => {
+      document.querySelectorAll(".card").forEach(card => {
+        card.classList.remove("flipped");
+        card.textContent = "❓";
+      });
+
+      startCountdown();
+    }, 4000);
+  }
+
+  function startCountdown() {
+    timerDisplay.textContent = "Tiempo: " + timeLeft + "s";
+
+    timer = setInterval(() => {
+      timeLeft--;
+      timerDisplay.textContent = "Tiempo: " + timeLeft + "s";
+
+      if (timeLeft <= 0) {
+        clearInterval(timer);
+        alert("Se acabó el tiempo. Nivel reiniciado.");
+        startChallenge();
+      }
+    }, 1000);
+  }
+
+  function flipCard(card) {
+    if (card.classList.contains("flipped") || card.classList.contains("matched")) return;
+    if (openedCards.length === 2) return;
+
+    card.classList.add("flipped");
+    card.textContent = card.dataset.emoji;
+    openedCards.push(card);
+
+    if (openedCards.length === 2) setTimeout(checkMatch, 500);
+  }
+
+  function checkMatch() {
+    const [c1, c2] = openedCards;
+
+    if (c1.dataset.emoji === c2.dataset.emoji) {
+      c1.classList.add("matched");
+      c2.classList.add("matched");
+      matched += 2;
+
+      if (matched === cardsArray.length) {
+        clearInterval(timer);
+
+        alert("¡Nivel " + level + " completado!");
+
+        level++;
+        if (level > 5) level = 1;
+
+        if (challengeMode) startChallenge();
+        else setupGame();
+      }
+    } else {
+      c1.classList.remove("flipped");
+      c2.classList.remove("flipped");
+      c1.textContent = "❓";
+      c2.textContent = "❓";
+    }
+
+    openedCards = [];
+  }
+</script>
+
+</body>
+</html>
+
